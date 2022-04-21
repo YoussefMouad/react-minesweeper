@@ -17,10 +17,10 @@ export default function MineButton(props: any) {
         (props.isOpen && props.content === 3 ? ` bg-amber-400` : "  ") +
         (props.isOpen && props.content === 4 ? ` bg-orange-400` : "  ") +
         (props.isOpen && props.content === 5 ? ` bg-orange-700` : "  ") +
-        (props.isOpen && props.content === 6 ? ` bg-red-300` : "  ") +
-        (props.isOpen && props.content === 7 ? ` bg-red-500` : "  ") +
-        (props.isOpen && props.content === 8 ? ` bg-red-700` : "  ") +
-        (props.isOpen && props.content === 9 ? ` bg-red-900` : "  ")
+        (props.isOpen && props.content === 6 ? ` bg-red-500` : "  ") +
+        (props.isOpen && props.content === 7 ? ` bg-red-700` : "  ") +
+        (props.isOpen && props.content === 8 ? ` bg-red-900` : "  ") +
+        (props.isOpen && props.content === 'B' ? ` bg-fuchsia-600` : "  ")
       }
       onClick={(event) => props.clickHandler(event, props.id)}
       onContextMenu={(event) => props.clickHandler(event, props.id)}

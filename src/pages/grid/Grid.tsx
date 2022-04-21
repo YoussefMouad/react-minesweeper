@@ -1,4 +1,4 @@
-import React, { Component, SyntheticEvent } from "react";
+import { Component, SyntheticEvent } from "react";
 import { MineButton, ButtonsGroup } from "../../components/buttons";
 import { Mine } from "../../models";
 
@@ -12,18 +12,19 @@ interface IState {
 export default class Grid extends Component<IProps, IState> {
   constructor(props: any) {
     super(props);
-    this.grid = this.getGrid(this.size);
+    this.grid = this.getGrid();
     this.state = {
       grid: this.grid.flat(),
       remainingBombs: this.bombsNumber[this.size],
     };
   }
 
+  private hasStarted = false;
   private size = 14;
   private bombsNumber: { [key: number]: number } = {
-    10: 10,
-    14: 40,
-    20: 100,
+    10: 10, //  10
+    14: 40, //  40
+    20: 100, // 100
   };
   private dificulties: { [key: string]: number } = {
     Easy: 10,
@@ -62,32 +63,49 @@ export default class Grid extends Component<IProps, IState> {
     );
   }
 
-  private getGrid(size: number): Mine[][] {
-    const grid = new Array(size);
-    const bombs = this.getRandomIds(this.bombsNumber[size], size);
+  private getGrid(): Mine[][] {
+    const grid = new Array(this.size);
 
-    for (let i = 0; i < size; ++i) {
-      grid[i] = new Array(size);
-      for (let j = 0; j < size; ++j) {
+    for (let i = 0; i < this.size; ++i) {
+      grid[i] = new Array(this.size);
+      for (let j = 0; j < this.size; ++j) {
         grid[i][j] = {
           id: `${i}-${j}`,
           isOpen: false,
           isFlagged: false,
-          hasMine: bombs.has(`${i}-${j}`),
-          content: bombs.has(`${i}-${j}`) ? "B" : undefined,
+          hasMine: false,
         };
       }
     }
 
-    return this.generateBombHintNumbers(grid, bombs);
+    return grid;
+  }
+
+  private addBombs(x: number, y: number) {
+    const bombs = this.getRandomIds(this.bombsNumber[this.size], x, y);
+
+    for (let i = 0; i < this.size; ++i) {
+      for (let j = 0; j < this.size; ++j) {
+        this.grid[i][j].hasMine = bombs.has(`${i}-${j}`);
+        this.grid[i][j].content = bombs.has(`${i}-${j}`) ? "B" : undefined;
+      }
+    }
+
+    this.generateBombHintNumbers(bombs);
+
+    this.setState({
+      grid: this.grid.flat(),
+    });
   }
 
   private refreshGrid = (size: number): void => {
     this.size = size;
+    this.hasStarted = false;
 
-    this.grid = this.getGrid(size);
+    this.grid = this.getGrid();
     this.setState({
       grid: this.grid.flat(),
+      remainingBombs: this.bombsNumber[size],
     });
   };
 
@@ -95,6 +113,11 @@ export default class Grid extends Component<IProps, IState> {
     event.preventDefault();
 
     const [x, y] = id.split("-").map((x) => +x);
+
+    if (!this.hasStarted) {
+      this.hasStarted = true;
+      this.addBombs(x, y);
+    }
 
     if (!this.grid[x][y].content && !this.grid[x][y].hasMine) {
       this.revealEmptyMines(x, y);
@@ -109,6 +132,14 @@ export default class Grid extends Component<IProps, IState> {
       });
     } else if (event.type === "click") {
       this.grid[x][y].isOpen = true;
+
+      if (this.grid[x][y].hasMine) {
+        for (let i = 0; i < this.size; ++i) {
+          for (let j = 0; j < this.size; ++j) {
+            if (this.grid[i][j].hasMine) this.grid[i][j].isOpen = true;
+          }
+        }
+      }
     }
 
     this.setState({
@@ -116,37 +147,48 @@ export default class Grid extends Component<IProps, IState> {
     });
   };
 
-  private getRandomIds(count: number, size: number): Set<string> {
+  private getRandomIds(count: number, x: number, y: number): Set<string> {
     const bombs = new Set<string>();
+    const excluded = new Set<string>();
+
+    for (let i = -1; i <= 1; ++i) {
+      for (let j = -1; j <= 1; ++j) {
+        excluded.add(`${x + i}-${y + j}`);
+      }
+    }
 
     while (bombs.size < count) {
-      bombs.add(
-        `${Math.floor(Math.random() * size)}-${Math.floor(
-          Math.random() * size
-        )}`
-      );
+      const generated = `${Math.floor(Math.random() * this.size)}-${Math.floor(
+        Math.random() * this.size
+      )}`;
+
+      if (excluded.has(generated)) {
+        continue;
+      }
+
+      bombs.add(generated);
     }
     return bombs;
   }
 
-  private generateBombHintNumbers(
-    grid: Mine[][],
-    bombs: Set<string>
-  ): Mine[][] {
+  private generateBombHintNumbers(bombs: Set<string>) {
     bombs.forEach((index) => {
       const [x, y] = index.split("-").map((x) => +x);
       for (let i = -1; i <= 1; ++i) {
         for (let j = -1; j <= 1; ++j) {
           if (
-            this.isInBounds(grid.length, x + i, y + j) &&
-            !grid[x + i][y + j].hasMine
+            this.isInBounds(this.grid.length, x + i, y + j) &&
+            !this.grid[x + i][y + j].hasMine
           ) {
-            grid[x + i][y + j].content = this.countBombs(grid, x + i, y + j);
+            this.grid[x + i][y + j].content = this.countBombs(
+              this.grid,
+              x + i,
+              y + j
+            );
           }
         }
       }
     });
-    return grid;
   }
 
   private countBombs(grid: Mine[][], x: number, y: number): number {
