@@ -1,4 +1,4 @@
-import { Component, SyntheticEvent } from "react";
+import { Component } from "react";
 import { MineButton, ButtonsGroup } from "../../components/buttons";
 import { Mine } from "../../models";
 
@@ -31,7 +31,7 @@ export default class Grid extends Component<IProps, IState> {
     Medium: 14,
     Hard: 20,
   };
-  private grid: Mine[][];
+  private grid: Mine[][] = [];
 
   render() {
     return (
@@ -93,9 +93,7 @@ export default class Grid extends Component<IProps, IState> {
 
     this.generateBombHintNumbers(bombs);
 
-    this.setState({
-      grid: this.grid.flat(),
-    });
+    this.setGridState();
   }
 
   private refreshGrid = (size: number): void => {
@@ -109,7 +107,7 @@ export default class Grid extends Component<IProps, IState> {
     });
   };
 
-  private handleClick = (event: SyntheticEvent, id: string) => {
+  private handleClick = (event: UIEvent, id: string) => {
     event.preventDefault();
 
     const [x, y] = id.split("-").map((x) => +x);
@@ -131,20 +129,24 @@ export default class Grid extends Component<IProps, IState> {
         remainingBombs: newCount,
       });
     } else if (event.type === "click") {
+      if (
+        event.detail === 2 &&
+        this.grid[x][y].isOpen &&
+        typeof this.grid[x][y].content === "number"
+      ) {
+        this.revealSurroundingCells(x, y);
+        this.setGridState();
+        return;
+      }
+
       this.grid[x][y].isOpen = true;
 
       if (this.grid[x][y].hasMine) {
-        for (let i = 0; i < this.size; ++i) {
-          for (let j = 0; j < this.size; ++j) {
-            if (this.grid[i][j].hasMine) this.grid[i][j].isOpen = true;
-          }
-        }
+        this.revealAllBombs();
       }
     }
 
-    this.setState({
-      grid: this.grid.flat(),
-    });
+    this.setGridState();
   };
 
   private getRandomIds(count: number, x: number, y: number): Set<string> {
@@ -223,7 +225,50 @@ export default class Grid extends Component<IProps, IState> {
     }
   }
 
+  private revealSurroundingCells(x: number, y: number): void {
+    let count = 0;
+    const cells: [number, number][] = [];
+    for (let i = -1; i <= 1; ++i) {
+      for (let j = -1; j <= 1; ++j) {
+        if (this.isInBounds(this.grid.length, x + i, y + j)) {
+          if (this.grid[x + i][y + j].isFlagged) {
+            ++count;
+          } else {
+            cells.push([x + i, y + j]);
+          }
+        }
+      }
+    }
+
+    if (this.grid[x][y].content === count) {
+      cells.forEach(([x1, y1]) => {
+        if (this.grid[x1][y1].hasMine) {
+          this.revealAllBombs();
+          return;
+        }
+        if (!this.grid[x1][y1].content) {
+          this.revealEmptyMines(x1, y1);
+        }
+        this.grid[x1][y1].isOpen = true;
+      });
+    }
+  }
+
+  private revealAllBombs() {
+    for (let i = 0; i < this.size; ++i) {
+      for (let j = 0; j < this.size; ++j) {
+        if (this.grid[i][j].hasMine) this.grid[i][j].isOpen = true;
+      }
+    }
+  }
+
   private isInBounds(size: number, x: number, y: number): boolean {
     return x >= 0 && y >= 0 && x < size && y < size;
+  }
+
+  private setGridState(): void {
+    this.setState({
+      grid: this.grid.flat(),
+    });
   }
 }
